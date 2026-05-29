@@ -15,8 +15,6 @@ from statsmodels.stats.diagnostic import acorr_ljungbox
 from statsmodels.stats.diagnostic import het_arch
 from scipy.stats import jarque_bera
 
-# Como nuestra grafica tiene cambio de pendiente a partir del 2021, (seguramente por pandemia) podemos usar la prueba:
-# ZIVOT-ANDREWS
 # ======================================
 # RUTAS DEL PROYECTO
 # ======================================
@@ -33,8 +31,7 @@ TABLAS_DIR.mkdir(exist_ok=True)
 # Ruta base de datos
 ruta = DATA_DIR / "ipc_colombia.xls"
 
-# Para archivos .xls (como el del proyecto) normalmente hace falta engine="xlrd".
-# Nota: si tu pandas ya detecta el engine, puede funcionar sin esto, pero es más seguro indicarlo.
+#NOTA: Si salta error, probablemente porque no tienes insatalada la extencion "xlrd" en tu enviroment de Conda.
 
 
 # ======================================
@@ -75,25 +72,12 @@ df['Fecha'] = pd.to_datetime(
 df = df.sort_values('Fecha')
 df = df.set_index('Fecha') # Establecer la columna de fecha como índice
 
-# ======================================
-# GRAFICA SERIE ORIGINAL
-# ======================================
+#La serie original muestra una tendencia creciente a lo largo del tiempo, lo que sugiere que el IPC ha estado aumentando. 
+# Además, se pueden observar algunos picos y valles, lo que indica que hay cierta variabilidad en la serie. Sin embargo, 
+# la tendencia general es claramente ascendente (alcista)
 
-plt.figure(figsize=(12,5))
-
-plt.plot(df['Número Índice'])
-
-plt.title("IPC Colombia") #se puede agregar al titulo los anos de la serie, por ejemplo "IPC Colombia (2000-2020)"
-plt.xlabel("Fecha")
-plt.ylabel("Número Índice")
-
-plt.savefig(RESULTS_DIR / "serie_original.png", dpi=300)
-
-plt.show()
-#La serie original muestra una tendencia creciente a lo largo del tiempo, lo que sugiere que el IPC ha estado aumentando. Además, se pueden observar algunos picos y valles, lo que indica que hay cierta variabilidad en la serie. Sin embargo, la tendencia general es claramente ascendente.
-
-# =====================================- GRAFICAS SERIE ORIGINAL Y FAC Y FACP PARA CANVA =================
-# ===================================== SERIE ORIGINAL PARA CANVA
+# =====================================- GRAFICAS SERIE ORIGINAL Y FAC Y FACP =================================================
+# ===================================== SERIE ORIGINAL 
 
 # Crear la figura para la serie original
 plt.figure(figsize=(8, 5))
@@ -116,18 +100,21 @@ plt.show()
 fig, axes = plt.subplots(1, 2, figsize=(12, 5))
 fig.patch.set_alpha(0.0)
 
-# FAC de la serie original (Verás el decrecimiento lento)
+# FAC de la serie original
+# Altamente persistente en el tiempo, nos muestra no estacionaridad
 plot_acf(df['Número Índice'], lags=30, ax=axes[0], color='red', vlines_kwargs={"colors": 'red'})
 axes[0].set_title("FAC - Serie Original (No Estacionaria)", fontsize=11, fontweight='bold')
 axes[0].set_xlabel("Rezagos")
 axes[0].grid(True, linestyle='--', alpha=0.3)
 
-# FACP de la serie original (Verás solo el primer rezago gigante)
+# FACP de la serie original 
+# 
 plot_pacf(df['Número Índice'], lags=30, ax=axes[1], color='orange', vlines_kwargs={"colors": 'orange'}, method='ywm')
 axes[1].set_title("FACP - Serie Original (No Estacionaria)", fontsize=11, fontweight='bold')
 axes[1].set_xlabel("Rezagos")
 axes[1].grid(True, linestyle='--', alpha=0.3)
 
+# Comando para guardar en la RESULTS_DIR (Graficas)
 plt.tight_layout()
 plt.savefig(RESULTS_DIR / "00_fac_facp_no_estacionaria.png", dpi=300, bbox_inches='tight', transparent=True)
 plt.show()
@@ -147,21 +134,28 @@ print("Valores críticos:", resultado_original[4]["5%"])
 print("La serie no es estacionaria")
 print("ADF statistic:", resultado_original[0], ">", resultado_original[4]["5%"])
 print("p-value:", resultado_original[1], "> 0.05")
-# El resultado del ADF indica que la serie no es estacionaria, ya que el estadístico ADF es mayor que el valor crítico al 5% y el p-value es mayor que 0.05. Esto sugiere que la serie tiene una tendencia o una raíz unitaria, lo que confirma la observación visual de la gráfica original.
+# El resultado del ADF indica que la serie no es estacionaria, ya que el estadístico ADF es mayor que el valor crítico al 5% y el 
+# p-value es mayor que 0.05. Esto sugiere que la serie tiene una tendencia o una raíz unitaria, lo que confirma la observación visual 
+# de la gráfica original.
+
+#NO aplicamos ADK deterministica porque la tendencia tiene un shock en donde la serie cambia de pendiente
 
 # ======================================
 # LOGARITMO IPC
 # ======================================
 
 df['log_IPC'] = np.log(df['Número Índice'])
-#Aplica logaritmo a cada uno de los indices de la columna "Numero Indice" del IPC, lo que puede ayudar a estabilizar la varianza y hacer que la serie sea más adecuada para el modelado ARIMA.
+#Aplica logaritmo a cada uno de los indices de la columna "Numero Indice" del IPC, lo que puede ayudar a estabilizar la varianza y 
+# hacer que la serie sea más adecuada para el modelado ARIMA.
 
 # Primera diferencia del log
 df['dlog_IPC'] = df['log_IPC'].diff()
-#Diferncia el logaritmo del IPC para eliminar la tendencia y hacer que la serie sea estacionaria. La función diff() calcula la diferencia entre cada valor y el valor anterior, lo que ayuda a eliminar la tendencia y estabilizar la serie.
+#Diferncia el logaritmo del IPC para eliminar la tendencia y hacer que la serie sea estacionaria. La función diff() calcula la diferencia 
+# entre cada valor y el valor anterior, lo que ayuda a eliminar la tendencia y estabilizar la serie.
 
 serie_dlog = df['dlog_IPC'].dropna() 
-# Eliminar el primer valor que es NaN por la diferencia  (Para el ultimo periodo no hay con que diferenciarlo por ende se genera un dato NaN, por eso se elimina con dropna())
+# Eliminar el primer valor que es NaN por la diferencia  (Para el ultimo periodo no hay con que diferenciarlo por ende se genera un dato NaN, 
+# por eso se elimina con dropna())
 
 # ======================================
 # ADF LOG DIFERENCIADA
@@ -177,13 +171,14 @@ print("p-value:", resultado_dlog[1])
 print("La serie es estacionaria")
 print("ADF statistic:", resultado_dlog[0], "<", resultado_dlog[4]["5%"])
 print("p-value:", resultado_dlog[1], "< 0.05")
-# El resultado del ADF indica que la serie es estacionaria, ya que el estadístico ADF es menor que el valor crítico al 5% y el p-value es menor que 0.05. Esto sugiere que la serie no tiene una tendencia ni una raíz unitaria, lo que confirma la observación visual de la gráfica original.
+# El resultado del ADF indica que la serie es estacionaria, ya que el estadístico ADF es menor que el valor crítico al 5% y el p-value es 
+# menor que 0.05. Esto sugiere que la serie no tiene una tendencia ni una raíz unitaria, lo que confirma la observación visual de la gráfica original.
 
 
-# ====================================== GRAFICA SERIE ESTACIONARIA PARA CANVA =================
-# ====================================== SERIE ESTACIONARIA PARA CANVA
+# ====================================== GRAFICA SERIE ESTACIONARIA ===============================================================
+# ====================================== SERIE ESTACIONARIA 
 
-# Configuramos el tamaño exacto solicitado a 12 de ancho por 5 de alto
+# Tamano 12x5 del plot.
 plt.figure(figsize=(12, 5))
 
 # Graficamos la serie transformada
@@ -195,12 +190,12 @@ plt.xlabel("Año", fontsize=11)
 plt.ylabel("Diferencia del Log IPC", fontsize=11)
 plt.grid(True, linestyle='--', alpha=0.3)
 
-# Guardar con transparencia para Canva
+# Comando para guardar en la RESULTS_DIR (Graficas)
 plt.savefig(RESULTS_DIR / "03_serie_estacionaria_individual.png", dpi=300, bbox_inches='tight', transparent=True)
 plt.show()
 # ====================================== FAC Y FACP PARA CANVA SERIE ESTACIONARIA =================
 
-# Creamos el lienzo de 12 de ancho por 5 de alto con fondo transparente
+# Tamano 12x5 para FAC y FACP 
 fig, axes = plt.subplots(1, 2, figsize=(12, 5))
 fig.patch.set_alpha(0.0) 
 
@@ -217,55 +212,25 @@ axes[1].set_title("Función de Autocorrelación Parcial (FACP)", fontsize=13, fo
 axes[1].set_xlabel("Rezagos (Lags)", fontsize=11)
 axes[1].grid(True, linestyle='--', alpha=0.3)
 
-# Ajustar distribución de márgenes y exportar
-plt.tight_layout()
+# Comando para guardar en la RESULTS_DIR (Graficas)
+plt.tight_layout() 
 plt.savefig(RESULTS_DIR / "04_fac_facp_estacionarias_individual.png", dpi=300, bbox_inches='tight', transparent=True)
 plt.show()
 
+#Encontramos que la FAC muestra un comportamiento estacional. Por la naturaleza de la serie, tenemos que el IPC es estacional de forma anual,
+# por lo que es esperable que haya autocorrelación en los rezagos 12, 24, 36, etc. Sin embargo, también se observa un pico significativo en 
+# el primer rezago, lo que sugiere que hay autocorrelación en el primer rezago. Esto podría indicar la presencia de un componente MA(1) en 
+# el modelo ARIMA.
+# La FACP muestra un pico significativo en el primer rezago, lo que sugiere que hay autocorrelación parcial en el primer rezago. Esto podría 
+# indicar la presencia de un componente AR(1) en el modelo ARIMA.
 
-
-# ======================================
-# GRAFICA SERIE ESTACIONARIA
-# ======================================
-
-plt.figure(figsize=(12,5))
-
-plt.plot(serie_dlog)
-
-plt.title("Primera diferencia del log IPC")
-plt.xlabel("Fecha")
-plt.ylabel("Serie estacionaria")
-
-plt.savefig(RESULTS_DIR / "serie_estacionaria.png", dpi=300)
-
-plt.show()
+#Para concluir, podriamos sugerir un ARIMA (1,1,1). Sin embargo, por la estacionalidad, no podemos plantear un modelo ARIMA simple, sino que 
+# debemos plantear un modelo SARIMA que capture la estacionalidad anual. Por lo tanto, podríamos sugerir un modelo SARIMA o desastacionalizar 
+# la serie y luego aplicar un modelo ARIMA. 
 
 # ======================================
-# FAC Y FACP
+# DESESTACIONALIZACION - ARMA X13
 # ======================================
-
-fig, ax = plt.subplots(1,2, figsize=(14,5))
-
-plot_acf(serie_dlog, ax=ax[0], lags=30)
-plot_pacf(serie_dlog, ax=ax[1], lags=30)
-
-ax[0].set_title("FAC")
-ax[1].set_title("FACP")
-
-plt.savefig(RESULTS_DIR / "FAC_FACP.png", dpi=300)
-
-plt.show()
-
-#CONCLUSION FAC Y FACP
-#1. La FAC muestra un pico significativo en el primer rezago, lo que sugiere que hay autocorrelación en el primer rezago. Esto podría indicar la presencia de un componente MA(1) en el modelo ARIMA.
-#La  FAC cae lentamente a cero de forma SENOIDAL después del primer rezago, lo que sugiere que hay autocorrelación en varios rezagos, pero el primer rezago es el más significativo. Esto podría indicar un proceso autorregresivo en el modelo ARIMA.
-#2. La FACP muestra un pico significativo en el primer rezago, lo que sugiere que hay autocorrelación parcial en el primer rezago. Esto podría indicar la presencia de un componente AR(1) en el modelo ARIMA.
-#3. Ambos gráficos muestran que los rezagos posteriores no son significativos, lo que sugiere que un modelo ARIMA(1,1,1) podría ser adecuado para esta serie temporal, ya que captura tanto la autocorrelación como la autocorrelación parcial en el primer rezago.
-
-#Posibilidades. Dado que en la FACP muestra un pico significativo negativo en el segundo rezago, puede haber una implicacion en que 1) la tasa en el momento t este relacionada a la tasa t-1. 2) Hay rezagos significativos en el rezago 9 al 13. Esto puede significar
-# un componente estacional en el modelo, aunque no es tan claro como para afirmar que es un componente estacional de orden 12 (ARIMA(1,1,1)(0,0,0)[12]), pero si se podría considerar la posibilidad de incluir un componente estacional en el modelo ARIMA para capturar esta posible autocorrelación estacional.
-# En otras palabras, un modelo ARIMA (1,1,1) puede quedarse corto.
-
 # ======================================
 # MODELOS ARIMA
 # ======================================
@@ -335,7 +300,6 @@ print(resultado_3.summary())
 #      \underset{(0.031)}               \underset{(0.067)}
 
 # ====================================== ESTIMACION PARA CANVA =================
-import matplotlib.pyplot as plt
 
 # Configuramos una figura pequeña, ya que solo contendrá texto,
 # pero mantenemos una resolución alta (dpi) para que se vea nítida en Canva.
@@ -573,9 +537,6 @@ plt.savefig(RESULTS_DIR / "tabla_validacion_supuestos.png", dpi=300, bbox_inches
 plt.show()
 
 # ====================================== RESIDUOS PARA CANVA =================
-import matplotlib.pyplot as plt
-from statsmodels.graphics.tsaplots import plot_acf
-
 # Creamos el lienzo de 12x5 pulgadas solicitado con fondo transparente
 fig, axes = plt.subplots(1, 2, figsize=(12, 5))
 fig.patch.set_alpha(0.0)

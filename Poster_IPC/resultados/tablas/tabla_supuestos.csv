@@ -1,4 +1,4 @@
 Prueba,Hipótesis nula,Estadístico,p-value
-Ljung-Box,No autocorrelación,0.013342939713992828,0.9999999999998904
+Ljung-Box,No autocorrelación,0.014095823720974713,0.9999999999999998
 ARCH,Homocedasticidad,2.3569433186381126,0.7978683682755424
 Jarque-Bera,Normalidad,1288840.2961055231,0.0
